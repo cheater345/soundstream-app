@@ -1,10 +1,7 @@
 package com.example.data.remote
 
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.Response
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.util.concurrent.TimeUnit
@@ -14,13 +11,9 @@ object ApiClient {
     private const val PROXY_BASE_URL = "https://f4fb27c8ecc6bb.lhr.life/"
     private const val TAG = "ApiClient"
 
-    private val moshi = Moshi.Builder()
-        .addLast(KotlinJsonAdapterFactory())
-        .build()
-
     val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
         .writeTimeout(15, TimeUnit.SECONDS)
         .followRedirects(true)
         .followSslRedirects(true)
@@ -30,7 +23,7 @@ object ApiClient {
         Retrofit.Builder()
             .baseUrl(PIPED_BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .addConverterFactory(MoshiConverterFactory.create())
             .build()
             .create(PipedApiService::class.java)
     }
@@ -41,10 +34,12 @@ object ApiClient {
             .build()
         val response = okHttpClient.newCall(request).execute()
         val body = response.body?.string() ?: throw Exception("Empty proxy response")
-        val json = moshi.adapter(Map::class.java).fromJson(body) as? Map<*, *>
-        val url = json?.get("url") as? String
-            ?: throw Exception("No URL in proxy response: ${json?.get("error")}")
-        return url
+        val urlKey = "\"url\""
+        val urlStart = body.indexOf(urlKey)
+        if (urlStart == -1) throw Exception("No URL in proxy response: $body")
+        val valueStart = body.indexOf('"', urlStart + urlKey.length + 1) + 1
+        val valueEnd = body.indexOf('"', valueStart)
+        return body.substring(valueStart, valueEnd)
     }
 
     fun extractVideoId(url: String): String {
