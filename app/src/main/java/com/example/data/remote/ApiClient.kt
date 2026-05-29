@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
     private const val PIPED_BASE_URL = "https://api.piped.private.coffee/"
-    private const val PROXY_BASE_URL = "https://aab428615b223c.lhr.life/"
+    private const val PROXY_BASE_URL = "https://ab6ec84d950657.lhr.life/"
     private const val TAG = "ApiClient"
 
     val okHttpClient = OkHttpClient.Builder()
