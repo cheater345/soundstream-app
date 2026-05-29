@@ -85,7 +85,7 @@ object PlaybackManager {
         }
     }
 
-    fun playSong(context: Context, song: SongEntity, fullPlaylist: List<SongEntity>) {
+    suspend fun playSong(context: Context, song: SongEntity, fullPlaylist: List<SongEntity>) {
         appContext = context.applicationContext
         val player = getPlayer(context)
         _playlist.value = fullPlaylist
@@ -101,7 +101,9 @@ object PlaybackManager {
             Log.d(TAG, "Playing downloaded offline song: ${song.title} from path ${song.localPath}")
             Uri.fromFile(File(song.localPath))
         } else {
-            val remoteUrl = ApiClient.getStreamUrl(song.id)
+            val remoteUrl = withContext(Dispatchers.IO) {
+                ApiClient.getStreamUrl(song.id)
+            }
             Log.d(TAG, "Playing remote live streamed song: ${song.title} from URL $remoteUrl")
             Uri.parse(remoteUrl)
         }
@@ -151,7 +153,9 @@ object PlaybackManager {
             nextIndex = 0
         }
 
-        playSong(ctx, list[nextIndex], list)
+        scope.launch {
+            playSong(ctx, list[nextIndex], list)
+        }
     }
 
     fun playPrevious(context: Context? = null) {
@@ -164,7 +168,9 @@ object PlaybackManager {
             prevIndex = list.size - 1
         }
 
-        playSong(ctx, list[prevIndex], list)
+        scope.launch {
+            playSong(ctx, list[prevIndex], list)
+        }
     }
 
     private fun startProgressTicker() {

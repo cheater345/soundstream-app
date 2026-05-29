@@ -97,7 +97,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     // Playback events delegated directly to PlaybackManager
     fun playSong(song: SongEntity, tracklist: List<SongEntity>) {
-        PlaybackManager.playSong(getApplication(), song, tracklist)
+        viewModelScope.launch {
+            PlaybackManager.playSong(getApplication(), song, tracklist)
+        }
     }
 
     fun togglePlayPause() {
