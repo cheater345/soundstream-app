@@ -64,19 +64,14 @@ class MusicRepository(
 
     suspend fun searchSongs(query: String): List<SongEntity> = withContext(Dispatchers.IO) {
         if (query.trim().isEmpty()) return@withContext emptyList()
-        try {
-            val response = pipedApi.search(query = query, filter = "videos")
-            response.items
-                .filter { !it.isShort }
-                .take(40)
-                .map { item ->
-                    val id = ApiClient.extractVideoId(item.url)
-                    mapPipedItem(id, item.title, item.uploaderName, item.duration, item.thumbnail)
-                }
-        } catch (e: Exception) {
-            Log.e("MusicRepository", "Error searching songs", e)
-            emptyList()
-        }
+        val response = pipedApi.search(query = query, filter = "videos")
+        response.items
+            .filter { !it.isShort }
+            .take(40)
+            .map { item ->
+                val id = ApiClient.extractVideoId(item.url)
+                mapPipedItem(id, item.title, item.uploaderName, item.duration, item.thumbnail)
+            }
     }
 
     suspend fun toggleFavorite(song: SongEntity) = withContext(Dispatchers.IO) {

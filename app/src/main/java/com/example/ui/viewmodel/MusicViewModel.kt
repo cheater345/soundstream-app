@@ -9,8 +9,10 @@ import com.example.data.local.SongEntity
 import com.example.data.repository.MusicRepository
 import com.example.playback.PlaybackManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 
 sealed interface UiState<out T> {
     object Loading : UiState<Nothing>
@@ -32,6 +34,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _searchResultsState = MutableStateFlow<UiState<List<SongEntity>>>(UiState.Success(emptyList()))
     val searchResultsState: StateFlow<UiState<List<SongEntity>>> = _searchResultsState.asStateFlow()
+
+    private var searchJob: Job? = null
 
     private val _selectedGenre = MutableStateFlow("All")
     val selectedGenre: StateFlow<String> = _selectedGenre.asStateFlow()
@@ -84,7 +88,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        viewModelScope.launch {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(300)
             _searchResultsState.value = UiState.Loading
             try {
                 val results = repository.searchSongs(query)

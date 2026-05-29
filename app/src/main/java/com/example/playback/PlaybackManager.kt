@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import android.widget.Toast
@@ -46,7 +47,21 @@ object PlaybackManager {
 
     fun getPlayer(context: Context): ExoPlayer {
         appContext = context.applicationContext
-        return exoPlayer ?: synchronized(this) {
+        exoPlayer?.let {
+            try {
+                if (it.playbackState != Player.STATE_IDLE) return it
+            } catch (_: IllegalStateException) {
+                exoPlayer = null
+            }
+        }
+        return synchronized(this) {
+            exoPlayer?.let {
+                try {
+                    if (it.playbackState != Player.STATE_IDLE) return it
+                } catch (_: IllegalStateException) {
+                    exoPlayer = null
+                }
+            }
             val player = ExoPlayer.Builder(context.applicationContext).build().apply {
                 repeatMode = Player.REPEAT_MODE_OFF
                 playWhenReady = true
@@ -78,6 +93,12 @@ object PlaybackManager {
                         reason: Int
                     ) {
                         _currentPosition.value = newPosition.positionMs
+                    }
+
+                    override fun onPlayerError(error: PlaybackException) {
+                        Log.e(TAG, "Playback error", error)
+                        _isLoading.value = false
+                        _isPlaying.value = false
                     }
                 })
             }

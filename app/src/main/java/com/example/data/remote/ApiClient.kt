@@ -1,5 +1,7 @@
 package com.example.data.remote
 
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import retrofit2.Retrofit
@@ -8,7 +10,7 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
     private const val PIPED_BASE_URL = "https://api.piped.private.coffee/"
-    private const val PROXY_BASE_URL = "https://ab6ec84d950657.lhr.life/"
+    private const val PROXY_BASE_URL = "https://44628fe1367c5e20-143-44-225-117.serveousercontent.com/"
     private const val TAG = "ApiClient"
 
     val okHttpClient = OkHttpClient.Builder()
@@ -19,11 +21,15 @@ object ApiClient {
         .followSslRedirects(true)
         .build()
 
+    private val moshi = Moshi.Builder()
+        .addLast(KotlinJsonAdapterFactory())
+        .build()
+
     val pipedApi: PipedApiService by lazy {
         Retrofit.Builder()
             .baseUrl(PIPED_BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(MoshiConverterFactory.create())
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(PipedApiService::class.java)
     }
