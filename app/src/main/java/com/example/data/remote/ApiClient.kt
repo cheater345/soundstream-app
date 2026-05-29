@@ -8,8 +8,7 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 import java.util.concurrent.TimeUnit
 
 object ApiClient {
-    private const val PIPED_BASE_URL = "https://pipedapi.kavin.rocks/"
-    private const val TAG = "ApiClient"
+    private const val BASE_URL = "https://api.audius.co/"
 
     private val moshi = Moshi.Builder()
         .addLast(KotlinJsonAdapterFactory())
@@ -23,29 +22,16 @@ object ApiClient {
         .followSslRedirects(true)
         .build()
 
-    val pipedApi: PipedApiService by lazy {
+    val apiService: AudiusApiService by lazy {
         Retrofit.Builder()
-            .baseUrl(PIPED_BASE_URL)
+            .baseUrl(BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
-            .create(PipedApiService::class.java)
+            .create(AudiusApiService::class.java)
     }
 
-    suspend fun getStreamUrl(videoId: String): String {
-        val response = pipedApi.getStreams(videoId)
-        return response.audioStreams
-            .maxByOrNull { it.bitrate ?: 0 }
-            ?.url ?: throw Exception("No audio streams found for $videoId")
-    }
-
-    fun extractVideoId(url: String): String {
-        return if (url.startsWith("/watch?v=")) {
-            url.removePrefix("/watch?v=")
-        } else if (url.startsWith("https://")) {
-            url.substringAfter("v=").substringBefore("&").take(11)
-        } else {
-            url.take(11)
-        }
+    fun getStreamUrl(trackId: String): String {
+        return "${BASE_URL}v1/tracks/$trackId/stream?app_name=SoundStream"
     }
 }

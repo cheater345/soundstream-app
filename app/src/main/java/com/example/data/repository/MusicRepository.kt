@@ -6,6 +6,7 @@ import android.util.Log
 import com.example.data.local.SongDao
 import com.example.data.local.SongEntity
 import com.example.data.remote.ApiClient
+import com.example.data.remote.TrackDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -20,7 +21,7 @@ class MusicRepository(
     private val context: Context,
     private val songDao: SongDao
 ) {
-    private val pipedApi = ApiClient.pipedApi
+    private val apiService = ApiClient.apiService
     private val httpClient = OkHttpClient.Builder()
         .followRedirects(true)
         .followSslRedirects(true)
@@ -30,41 +31,25 @@ class MusicRepository(
     val downloadedSongs: Flow<List<SongEntity>> = songDao.getDownloadedSongsFlow()
     val allSavedSongs: Flow<List<SongEntity>> = songDao.getAllSongsFlow()
 
-    private fun mapPipedItem(id: String, title: String, uploader: String, duration: Int, thumbnail: String): SongEntity {
+    private suspend fun mapTrackToSongEntity(dto: TrackDto): SongEntity {
+        val existing = songDao.getSongById(dto.id)
         return SongEntity(
-            id = id,
-            title = title,
-            artist = uploader,
-            duration = duration,
-            artworkUrl = thumbnail,
-            isFavorite = false,
-            isDownloaded = false,
-            localPath = null,
-            downloadedTime = 0L
+            id = dto.id,
+            title = dto.title,
+            artist = dto.user?.name ?: "Unknown Artist",
+            duration = dto.duration,
+            artworkUrl = dto.artwork?.size480 ?: dto.artwork?.size150 ?: dto.artwork?.size1000,
+            isFavorite = existing?.isFavorite ?: false,
+            isDownloaded = existing?.isDownloaded ?: false,
+            localPath = existing?.localPath,
+            downloadedTime = existing?.downloadedTime ?: 0L
         )
     }
 
     suspend fun getTrendingSongs(genre: String? = null): List<SongEntity> = withContext(Dispatchers.IO) {
         try {
-            if (genre != null) {
-                val response = pipedApi.search(query = "trending $genre music", filter = "music_songs")
-                response.items
-                    .filter { !it.isShort }
-                    .take(30)
-                    .map { item ->
-                        val id = ApiClient.extractVideoId(item.url)
-                        mapPipedItem(id, item.title, item.uploaderName, item.duration, item.thumbnail)
-                    }
-            } else {
-                val response = pipedApi.getTrending()
-                response.items
-                    .filter { !it.isShort }
-                    .take(30)
-                    .map { item ->
-                        val id = ApiClient.extractVideoId(item.url)
-                        mapPipedItem(id, item.title, item.uploaderName, item.duration, item.thumbnail)
-                    }
-            }
+            val response = apiService.getTrendingTracks(genre = genre)
+            response.data.map { mapTrackToSongEntity(it) }
         } catch (e: Exception) {
             Log.e("MusicRepository", "Error loading trending songs", e)
             val cached = songDao.getAllSongsFlow().firstOrNull() ?: emptyList()
@@ -75,14 +60,8 @@ class MusicRepository(
     suspend fun searchSongs(query: String): List<SongEntity> = withContext(Dispatchers.IO) {
         if (query.trim().isEmpty()) return@withContext emptyList()
         try {
-            val response = pipedApi.search(query = query, filter = "music_songs")
-            response.items
-                .filter { !it.isShort }
-                .take(40)
-                .map { item ->
-                    val id = ApiClient.extractVideoId(item.url)
-                    mapPipedItem(id, item.title, item.uploaderName, item.duration, item.thumbnail)
-                }
+            val response = apiService.searchTracks(query = query)
+            response.data.map { mapTrackToSongEntity(it) }
         } catch (e: Exception) {
             Log.e("MusicRepository", "Error searching songs", e)
             emptyList()
@@ -114,10 +93,10 @@ class MusicRepository(
         onSuccess: (String) -> Unit,
         onFailure: (Throwable) -> Unit
     ) = withContext(Dispatchers.IO) {
-        try {
-            val streamUrl = ApiClient.getStreamUrl(song.id)
-            val request = Request.Builder().url(streamUrl).build()
+        val streamUrl = ApiClient.getStreamUrl(song.id)
+        val request = Request.Builder().url(streamUrl).build()
 
+        try {
             val response = httpClient.newCall(request).execute()
             if (!response.isSuccessful) {
                 throw IOException("Failed to download file: $response")
