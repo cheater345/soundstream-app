@@ -1,14 +1,11 @@
 package com.example.playback
 
 import android.content.Context
-import android.media.AudioAttributes
 import android.net.Uri
 import android.util.Log
-import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.data.local.SongEntity
 import com.example.data.remote.ApiClient
@@ -24,6 +21,7 @@ object PlaybackManager {
     private var exoPlayer: ExoPlayer? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var progressJob: Job? = null
+    private var appContext: Context? = null
 
     private val _currentSong = MutableStateFlow<SongEntity?>(null)
     val currentSong: StateFlow<SongEntity?> = _currentSong.asStateFlow()
@@ -46,6 +44,7 @@ object PlaybackManager {
     private var currentPlaylistIndex: Int = -1
 
     fun getPlayer(context: Context): ExoPlayer {
+        appContext = context.applicationContext
         return exoPlayer ?: synchronized(this) {
             val player = ExoPlayer.Builder(context.applicationContext).build().apply {
                 repeatMode = Player.REPEAT_MODE_OFF
@@ -64,7 +63,7 @@ object PlaybackManager {
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         _duration.value = duration.coerceAtLeast(0)
                         _isLoading.value = playbackState == Player.STATE_BUFFERING
-                        
+
                         if (playbackState == Player.STATE_READY) {
                             _duration.value = duration
                         } else if (playbackState == Player.STATE_ENDED) {
@@ -86,24 +85,25 @@ object PlaybackManager {
         }
     }
 
-    @OptIn(UnstableApi::class)
-    fun playSong(context: Context, song: SongEntity, fullPlaylist: List<SongEntity>) {
+    suspend fun playSong(context: Context, song: SongEntity, fullPlaylist: List<SongEntity>) {
+        appContext = context.applicationContext
         val player = getPlayer(context)
         _playlist.value = fullPlaylist
         _currentSong.value = song
-        
+
         currentPlaylistIndex = fullPlaylist.indexOfFirst { it.id == song.id }
         if (currentPlaylistIndex == -1) {
             _playlist.value = fullPlaylist + song
             currentPlaylistIndex = _playlist.value.size - 1
         }
 
-        // Determine if local file should be played or live stream
         val mediaUri = if (song.isDownloaded && !song.localPath.isNullOrEmpty() && File(song.localPath).exists()) {
             Log.d(TAG, "Playing downloaded offline song: ${song.title} from path ${song.localPath}")
             Uri.fromFile(File(song.localPath))
         } else {
-            val remoteUrl = ApiClient.getStreamUrl(song.id)
+            val remoteUrl = withContext(Dispatchers.IO) {
+                ApiClient.getStreamUrl(song.id)
+            }
             Log.d(TAG, "Playing remote live streamed song: ${song.title} from URL $remoteUrl")
             Uri.parse(remoteUrl)
         }
@@ -124,7 +124,6 @@ object PlaybackManager {
         player.prepare()
         player.play()
 
-        // Sync service
         PlaybackService.startMediaService(context)
     }
 
@@ -145,29 +144,33 @@ object PlaybackManager {
     }
 
     fun playNext(context: Context? = null) {
+        val ctx = context ?: appContext ?: return
         val list = _playlist.value
         if (list.isEmpty() || currentPlaylistIndex == -1) return
-        
+
         var nextIndex = currentPlaylistIndex + 1
         if (nextIndex >= list.size) {
-            nextIndex = 0 // Wrap around
+            nextIndex = 0
         }
-        
-        val ctx = context ?: return
-        playSong(ctx, list[nextIndex], list)
+
+        scope.launch {
+            playSong(ctx, list[nextIndex], list)
+        }
     }
 
     fun playPrevious(context: Context? = null) {
+        val ctx = context ?: appContext ?: return
         val list = _playlist.value
         if (list.isEmpty() || currentPlaylistIndex == -1) return
-        
+
         var prevIndex = currentPlaylistIndex - 1
         if (prevIndex < 0) {
-            prevIndex = list.size - 1 // Wrap around
+            prevIndex = list.size - 1
         }
-        
-        val ctx = context ?: return
-        playSong(ctx, list[prevIndex], list)
+
+        scope.launch {
+            playSong(ctx, list[prevIndex], list)
+        }
     }
 
     private fun startProgressTicker() {
@@ -188,7 +191,6 @@ object PlaybackManager {
         progressJob = null
     }
 
-    // Call when app is explicitly closed or system triggers release
     fun releaseAll() {
         stopProgressTicker()
         exoPlayer?.release()
