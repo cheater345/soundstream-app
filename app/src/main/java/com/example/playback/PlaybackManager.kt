@@ -125,6 +125,7 @@ object PlaybackManager {
         } else {
             val remoteUrl = try {
                 withContext(Dispatchers.IO) {
+                    ApiClient.refreshProxyUrl()
                     ApiClient.getStreamUrl(song.id)
                 }
             } catch (e: Exception) {

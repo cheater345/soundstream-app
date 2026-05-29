@@ -100,6 +100,7 @@ class MusicRepository(
         onFailure: (Throwable) -> Unit
     ) = withContext(Dispatchers.IO) {
         try {
+            ApiClient.refreshProxyUrl()
             val streamUrl = ApiClient.getStreamUrl(song.id)
             val request = Request.Builder().url(streamUrl).build()
 

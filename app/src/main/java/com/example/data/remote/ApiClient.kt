@@ -10,7 +10,8 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
     private const val PIPED_BASE_URL = "https://api.piped.private.coffee/"
-    private const val PROXY_BASE_URL = "https://44628fe1367c5e20-143-44-225-117.serveousercontent.com/"
+    private const val PROXY_CONFIG_URL = "https://raw.githubusercontent.com/cheater345/soundstream-proxy/main/proxy-url.txt"
+    private const val PROXY_BASE_URL = "https://2d363e8d8213ec2d-143-44-225-117.serveousercontent.com/"
     private const val TAG = "ApiClient"
 
     val okHttpClient = OkHttpClient.Builder()
@@ -25,6 +26,8 @@ object ApiClient {
         .addLast(KotlinJsonAdapterFactory())
         .build()
 
+    private var proxyBaseUrl: String = PROXY_BASE_URL
+
     val pipedApi: PipedApiService by lazy {
         Retrofit.Builder()
             .baseUrl(PIPED_BASE_URL)
@@ -34,9 +37,27 @@ object ApiClient {
             .create(PipedApiService::class.java)
     }
 
+    suspend fun refreshProxyUrl() {
+        try {
+            val request = Request.Builder()
+                .url(PROXY_CONFIG_URL)
+                .build()
+            val response = okHttpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                val url = response.body?.string()?.trim()?.trimEnd('/')
+                if (!url.isNullOrEmpty()) {
+                    proxyBaseUrl = "$url/"
+                    android.util.Log.d(TAG, "Proxy URL updated: $proxyBaseUrl")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to fetch proxy URL config", e)
+        }
+    }
+
     suspend fun getStreamUrl(videoId: String): String {
         val request = Request.Builder()
-            .url("${PROXY_BASE_URL}stream?videoId=$videoId")
+            .url("${proxyBaseUrl}stream?videoId=$videoId")
             .build()
         val response = okHttpClient.newCall(request).execute()
         if (!response.isSuccessful) {
