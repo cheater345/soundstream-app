@@ -6,13 +6,8 @@ import android.os.Build
 import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
-import androidx.media3.session.SessionCommand
-import androidx.media3.session.SessionResult
-import com.google.common.util.concurrent.ListenableFuture
-import com.google.common.util.concurrent.Futures
 
 class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
@@ -45,9 +40,7 @@ class PlaybackService : MediaSessionService() {
             ): MediaSession.ConnectionResult {
                 // Accept all connections and enable typical media keys
                 return MediaSession.ConnectionResult.accept(
-                    SessionCommand.COMMAND_CODE_PLAY_PAUSE.let { 
-                        MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS 
-                    },
+                    MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS,
                     MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS
                 )
             }
