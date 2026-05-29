@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
     private const val PIPED_BASE_URL = "https://api.piped.private.coffee/"
-    private const val PROXY_BASE_URL = "https://72dab6fd7c02d1.lhr.life/"
+    private const val PROXY_BASE_URL = "https://aab428615b223c.lhr.life/"
     private const val TAG = "ApiClient"
 
     val okHttpClient = OkHttpClient.Builder()
@@ -33,10 +33,19 @@ object ApiClient {
             .url("${PROXY_BASE_URL}stream?videoId=$videoId")
             .build()
         val response = okHttpClient.newCall(request).execute()
+        if (!response.isSuccessful) {
+            throw Exception("Proxy returned ${response.code}")
+        }
         val body = response.body?.string() ?: throw Exception("Empty proxy response")
+        if (body.contains("\"error\"")) {
+            val msgStart = body.indexOf("\"error\"") + 8
+            val msgValStart = body.indexOf('"', msgStart) + 1
+            val msgValEnd = body.indexOf('"', msgValStart)
+            throw Exception(body.substring(msgValStart, msgValEnd))
+        }
         val urlKey = "\"url\""
         val urlStart = body.indexOf(urlKey)
-        if (urlStart == -1) throw Exception("No URL in proxy response: $body")
+        if (urlStart == -1) throw Exception("No URL in proxy response")
         val valueStart = body.indexOf('"', urlStart + urlKey.length + 1) + 1
         val valueEnd = body.indexOf('"', valueStart)
         return body.substring(valueStart, valueEnd)

@@ -7,6 +7,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import android.widget.Toast
 import com.example.data.local.SongEntity
 import com.example.data.remote.ApiClient
 import kotlinx.coroutines.*
@@ -101,8 +102,16 @@ object PlaybackManager {
             Log.d(TAG, "Playing downloaded offline song: ${song.title} from path ${song.localPath}")
             Uri.fromFile(File(song.localPath))
         } else {
-            val remoteUrl = withContext(Dispatchers.IO) {
-                ApiClient.getStreamUrl(song.id)
+            val remoteUrl = try {
+                withContext(Dispatchers.IO) {
+                    ApiClient.getStreamUrl(song.id)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to get stream URL for ${song.id}", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(appContext, "Stream unavailable: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+                return
             }
             Log.d(TAG, "Playing remote live streamed song: ${song.title} from URL $remoteUrl")
             Uri.parse(remoteUrl)
