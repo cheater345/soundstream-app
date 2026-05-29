@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
     private const val BASE_URL = "https://api.audius.co/"
+    private const val BASE_URLv1 = BASE_URL
 
     private val moshi = Moshi.Builder()
         .addLast(KotlinJsonAdapterFactory())

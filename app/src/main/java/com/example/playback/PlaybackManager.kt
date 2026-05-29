@@ -153,7 +153,7 @@ object PlaybackManager {
             nextIndex = 0 // Wrap around
         }
         
-        val ctx = context ?: exoPlayer?.applicationContext ?: return
+        val ctx = context ?: return
         playSong(ctx, list[nextIndex], list)
     }
 
@@ -166,7 +166,7 @@ object PlaybackManager {
             prevIndex = list.size - 1 // Wrap around
         }
         
-        val ctx = context ?: exoPlayer?.applicationContext ?: return
+        val ctx = context ?: return
         playSong(ctx, list[prevIndex], list)
     }
 
