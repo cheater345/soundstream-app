@@ -1,0 +1,6 @@
+{
+  "name": "SoundStream",
+  "description": "A premium Spotify-like music streaming and downloading Android app that streams real audio tracks from decentralized and open-source public networks with offline background playback.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
